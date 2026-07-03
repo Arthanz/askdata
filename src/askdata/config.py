@@ -24,6 +24,9 @@ class Settings:
     ollama_model: str = field(
         default_factory=lambda: os.getenv("ASKDATA_OLLAMA_MODEL", "qwen2.5-coder:7b")
     )
+    gemini_model: str = field(
+        default_factory=lambda: os.getenv("ASKDATA_GEMINI_MODEL", "gemini-2.5-flash")
+    )
     db_path: Path = field(
         default_factory=lambda: Path(os.getenv("ASKDATA_DB", str(DEFAULT_DB_PATH)))
     )

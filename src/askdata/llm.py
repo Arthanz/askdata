@@ -6,6 +6,7 @@ Anthropic, OpenAI, and a scripted client for deterministic tests.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -93,4 +94,10 @@ def get_client(settings: Settings | None = None) -> LLMClient:
         return OpenAIClient(settings.openai_model)
     if provider == "ollama":  # free local models — install from ollama.com, then e.g. `ollama pull qwen2.5-coder:7b`
         return OpenAIClient(settings.ollama_model, base_url="http://localhost:11434/v1", api_key="ollama")
+    if provider == "gemini":  # free-tier key from aistudio.google.com; OpenAI-compatible endpoint
+        return OpenAIClient(
+            settings.gemini_model,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key=os.getenv("GEMINI_API_KEY"),
+        )
     raise ValueError(f"Unknown provider: {provider!r}")
