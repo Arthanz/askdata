@@ -1,0 +1,74 @@
+{
+  "askdata (verification on)": {
+    "rows": [
+      {
+        "id": "L1",
+        "tier": "lookup",
+        "question": "How many orders are in the dataset?",
+        "expect_abstain": false,
+        "abstain_ok": false,
+        "status": "trusted",
+        "correct": true,
+        "acceptable": true,
+        "attempts": 1,
+        "sql": "SELECT COUNT(*) AS total_orders FROM orders",
+        "answer": "There are 99,441 orders in the dataset.",
+        "failed_checks": [],
+        "input_tokens": 1655,
+        "output_tokens": 61,
+        "seconds": 19.52
+      },
+      {
+        "id": "L2",
+        "tier": "lookup",
+        "question": "How many unique customers do we have?",
+        "expect_abstain": false,
+        "abstain_ok": false,
+        "status": "trusted",
+        "correct": false,
+        "acceptable": false,
+        "attempts": 1,
+        "sql": "SELECT COUNT(DISTINCT customer_id) AS number_of_unique_customers FROM customers",
+        "answer": "There are 99,441 unique customers in the database.",
+        "failed_checks": [],
+        "input_tokens": 1666,
+        "output_tokens": 59,
+        "seconds": 4.77
+      },
+      {
+        "id": "L3",
+        "tier": "lookup",
+        "question": "How many products are listed in the catalog?",
+        "expect_abstain": false,
+        "abstain_ok": false,
+        "status": "trusted",
+        "correct": true,
+        "acceptable": true,
+        "attempts": 1,
+        "sql": "SELECT COUNT(DISTINCT product_id) AS num_products FROM products",
+        "answer": "There are 32,951 unique products listed in the catalog.",
+        "failed_checks": [],
+        "input_tokens": 1662,
+        "output_tokens": 52,
+        "seconds": 4.48
+      }
+    ],
+    "summary": {
+      "n": 3,
+      "answered": 3,
+      "abstained": 0,
+      "errors": 0,
+      "correct": 2,
+      "accuracy": 0.667,
+      "accuracy_answerable": 0.667,
+      "confidently_wrong": 1,
+      "confidently_wrong_rate": 0.333,
+      "hallucinated_unanswerable": 0,
+      "repaired": 0,
+      "repair_success": 0,
+      "avg_attempts": 1.0,
+      "avg_seconds": 9.59,
+      "total_tokens": 5155
+    }
+  }
+}
