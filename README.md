@@ -33,7 +33,7 @@ analyst: data → insight → prediction → recommendation, communicated to a c
 | "apply analytical models to predict business outcomes … Python" | review-risk model — [`predict/review_risk.py`](predict/review_risk.py) |
 | "uncover insights, inform decision-making" | marts + business readout (below) |
 | "latest technologies … AI/ML … cognitive technologies" | AskData NL agent — [`src/askdata/agent.py`](src/askdata/agent.py) |
-| "attention to detail" / reliability | verification layer + 42-question eval harness — [`eval/`](eval) |
+| "attention to detail" / reliability | verification layer + 150-question eval harness — [`eval/`](eval) |
 | "Good understanding in AI and ML" | LLM-as-judge, abstention, failure-mode taxonomy — [`paper/`](paper) |
 | "recommend … to clients", communication, presentation | recommendation one-pager + deck (ROADMAP Phase 7) |
 
@@ -89,14 +89,18 @@ python -m eval.run                 # baseline vs verified — the paper's result
 
 ## Evaluation
 
-[`eval/golden.jsonl`](eval/golden.jsonl): 42 questions across six tiers — lookup,
-aggregation, multi-join, temporal, **ambiguous**, **unanswerable**. Gold answers
+[`eval/golden.jsonl`](eval/golden.jsonl): 150 questions across six tiers — lookup
+(20), aggregation (26), multi-join (30), temporal (24), **ambiguous** (18),
+**unanswerable** (32). Gold answers
 come from executing gold SQL on the same database. `python -m eval.run` compares
 the naive agent against AskData and reports the **confidently-wrong rate** (the
 headline), accuracy, abstention, repair success, and the latency/token cost of
 trust. Results land in `eval/reports/`.
 
-## Results — 42 questions, full Olist, two providers
+## Results — pilot runs (42-question set), full Olist, two providers
+
+_(final campaign on the 150-question set — 3 runs × 3 providers — in progress;
+these pilot numbers will be replaced)_
 
 | confidently-wrong rate | baseline | AskData (verified) | reduction |
 |---|---|---|---|

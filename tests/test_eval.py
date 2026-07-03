@@ -9,7 +9,9 @@ from eval.run import load_golden
 
 def test_golden_set_loads():
     items = load_golden()
-    assert len(items) >= 40
+    assert len(items) >= 150
+    ids = [it["id"] for it in items]
+    assert len(ids) == len(set(ids)), "duplicate question ids"
     assert all({"id", "tier", "question"} <= set(it) for it in items)
 
 

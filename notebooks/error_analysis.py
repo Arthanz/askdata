@@ -12,8 +12,11 @@ import pandas as pd
 
 reports = sorted(Path("../eval/reports").glob("report_*.json"))
 assert reports, "No reports found — run `python -m eval.run` first."
-data = json.loads(reports[-1].read_text())
-print("Loaded:", reports[-1].name, "| configs:", list(data))
+raw = json.loads(reports[-1].read_text())
+# reports carry a meta block since the 150-question campaign; older ones don't
+data = raw.get("configs", raw)
+meta = raw.get("meta", {})
+print("Loaded:", reports[-1].name, "| provider:", meta.get("provider", "?"), "| configs:", list(data))
 
 # %% [markdown]
 # ## Headline comparison

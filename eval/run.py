@@ -121,6 +121,7 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=None, help="run only the first N questions")
     ap.add_argument("--use-judge", action="store_true", help="LLM answer-equivalence fallback")
     ap.add_argument("--db", default=None, help="path to the DuckDB file")
+    ap.add_argument("--tag", default=None, help="label included in the report filename (e.g. ollama-run1)")
     args = ap.parse_args(argv)
 
     settings = Settings()
@@ -142,19 +143,34 @@ def main(argv=None):
         results["askdata (verification on)"] = run_config(
             "askdata (verification on)", True, items, settings, args.use_judge)
 
-    report = render_report(results)
+    provider = settings.resolved_provider()
+    model = {
+        "anthropic": settings.anthropic_model,
+        "openai": settings.openai_model,
+        "ollama": settings.ollama_model,
+    }.get(provider, provider)
+    meta = {
+        "provider": provider,
+        "model": model,
+        "tag": args.tag,
+        "n_questions": len(items),
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+    }
+    report = f"provider: `{provider}` · model: `{model}` · tag: `{args.tag}`\n\n" + render_report(results)
     REPORTS.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    (REPORTS / f"report_{stamp}.md").write_text(report)
-    (REPORTS / f"report_{stamp}.json").write_text(json.dumps(
-        {name: {"rows": rows, "summary": s} for name, (rows, s) in results.items()},
+    name_part = f"{args.tag}_{stamp}" if args.tag else stamp
+    (REPORTS / f"report_{name_part}.md").write_text(report)
+    (REPORTS / f"report_{name_part}.json").write_text(json.dumps(
+        {"meta": meta,
+         "configs": {name: {"rows": rows, "summary": s} for name, (rows, s) in results.items()}},
         indent=2, default=str))
     print("\n" + "=" * 70)
     for name, (_, s) in results.items():
         print(f"\n{name}:")
         for k, v in s.items():
             print(f"  {k:28s} {v}")
-    print(f"\nReport written to eval/reports/report_{stamp}.md")
+    print(f"\nReport written to eval/reports/report_{name_part}.md")
 
 
 if __name__ == "__main__":

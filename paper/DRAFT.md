@@ -14,11 +14,11 @@ a correct query; they say little about what the system does when it *cannot* —
 which, in an interactive analytics setting, determines whether users can rely on
 it at all. We study the dominant real-world failure mode of such agents:
 **confidently-wrong answers**, where the agent returns a plausible-looking but
-incorrect result with no signal of uncertainty. Using a 42-question golden set
+incorrect result with no signal of uncertainty. Using a 150-question golden set
 over the public Olist e-commerce dataset — spanning lookup, aggregation,
 multi-join, temporal, deliberately *ambiguous*, and deliberately *unanswerable*
 questions — we show that a naive LLM agent produces confidently-wrong answers on
-**[X]%** of questions, and answers **[X] of 6** unanswerable questions instead of
+**[X]%** of questions, and answers **[X] of 32** unanswerable questions instead of
 declining. We then add a lightweight, model-agnostic verification layer — static
 schema checks, result sanity checks, an LLM judge that asks *"does this SQL
 answer this question?"*, and a bounded repair loop — that assigns every answer a
@@ -114,8 +114,10 @@ verification off: first executable query wins and is always presented as trusted
 tables). Experiments run on the full dump; the repo also ships a schema-identical
 synthetic sample so the harness is reproducible with zero downloads.
 
-**Golden set.** 42 questions in six tiers: lookup (8), aggregation (9),
-multi-join (8), temporal (7), ambiguous (4), unanswerable (6). Answerable
+**Golden set.** 150 questions in six tiers: lookup (20), aggregation (26),
+multi-join (30), temporal (24), ambiguous (18), unanswerable (32 — 21% of the
+set, following EHRSQL's precedent of weighting unanswerable questions heavily
+[Lee et al., 2022]). Answerable
 questions carry gold SQL, executed against the same database at eval time — so
 gold answers are correct by construction. Unanswerable questions (profit margin,
 churn, marketing channel, returns, conversion, customer age) reference data that
@@ -141,7 +143,12 @@ each run with two model providers to check the effect is not provider-specific.
 > Numbers below come from `eval/reports/report_*.json`; the table is generated
 > by `python -m eval.run`.
 
-### First provider: Qwen2.5-Coder-3B (local, via Ollama) — 2026-07-03
+> **Note:** the two tables below are pilot runs on the initial 42-question set
+> (single run each). They are superseded by the final campaign on the
+> 150-question set (3 runs per provider per configuration, reported as
+> mean ± sd) and are kept here only until those tables land.
+
+### Pilot, first provider: Qwen2.5-Coder-3B (local, via Ollama) — 2026-07-03
 
 | metric | baseline | AskData (verified) |
 |---|---|---|
