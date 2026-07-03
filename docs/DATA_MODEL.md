@@ -1,8 +1,7 @@
 # Data model — Olist star schema
 
-A dimensional model (Kimball-style) is what the BI/DW half of the Deloitte AI &
-Data role is about, so the warehouse is modeled explicitly rather than queried
-off raw tables. Built in a `dw` schema inside DuckDB by
+The warehouse is modeled explicitly (Kimball-style dimensional model) rather
+than queried off raw tables. Built in a `dw` schema inside DuckDB by
 [`src/askdata/warehouse.py`](../src/askdata/warehouse.py); the SQL is standard
 enough to port to BigQuery with only date-function renames.
 
@@ -35,7 +34,7 @@ revenue, freight, and delivery analysis.
 | `dw.dim_date` | dimension | 773 | date_key, year, quarter, month, dow |
 | `dw.dim_payment` | junk dimension | 28 | payment_key, payment_type, payment_installments |
 
-Modeling decisions worth defending in an interview:
+Modeling decisions:
 - **Order-item grain** so revenue and freight aggregate without fan-out; order-level
   facts (status, delay, review) are repeated per item by design.
 - **First payment / latest review per order** (window functions) to avoid the
@@ -55,4 +54,4 @@ Modeling decisions worth defending in an interview:
 ## Why this shape
 Everything downstream reads the marts: the dashboard, the review-risk model's
 feature query, and (optionally) the AskData agent. One governed model, three
-consumers — which is also the governance/metadata story the JD asks for.
+consumers.

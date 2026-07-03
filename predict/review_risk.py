@@ -5,9 +5,6 @@ on marketplace conversion. If we can flag at-risk orders *before* the review
 lands (using only signals known at/around delivery), the business can intervene
 — proactive support outreach, a goodwill voucher, seller coaching.
 
-This is the "apply analytical models to predict business outcomes" piece of the
-Deloitte AI & Data JD, done in Python on the real Olist data.
-
 Data source, in order of preference:
 1. data/askdata.duckdb (real Olist if loaded, else the synthetic sample) —
    features come from FEATURES_SQL below, one row per delivered order.

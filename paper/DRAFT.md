@@ -40,7 +40,7 @@ grain, missing join) the result is a *confidently-wrong* answer, which in a
 business setting is strictly worse than an error message: it gets pasted into
 slides.
 
-Public benchmarks under-measure this. Spider and BIRD score execution accuracy
+Public benchmarks under-measure this. Spider [1] and BIRD [3] score execution accuracy
 on answerable questions; they do not ask what a system does with a question the
 schema cannot answer, or an ambiguous question with several defensible readings.
 Interactive analytics encounters both constantly.
@@ -61,20 +61,56 @@ intervention that any text-to-SQL stack can adopt.
 
 ## 2. Related work
 
-**Text-to-SQL benchmarks.** Spider [Yu et al., 2018] and BIRD [Li et al., 2023]
-established execution accuracy on complex schemas; recent work adds dialect and
-efficiency concerns. These benchmarks assume every question is answerable, so
-abstention behavior goes unmeasured.
+**Text-to-SQL generation and its benchmarks.** Semantic parsing of natural
+language into SQL has a long history; the modern era was defined by Spider [1],
+which introduced cross-domain evaluation over 200 databases and made
+execution-based metrics standard, later hardened against false positives by
+distilled test suites [2]. BIRD [3] scaled the setting to larger, noisier
+databases and added execution-efficiency concerns, and its leaderboard has been
+dominated by LLM-based systems since. Prompting-based methods now define the
+state of the art: DIN-SQL [4] decomposes the task into sub-problems with a
+self-correction stage, and DAIL-SQL [5] systematically benchmarks prompt
+designs, approaching human performance on Spider. All of this work measures
+whether a system *can* produce correct SQL. None of it models what the system
+should do when it cannot — every question in Spider and BIRD has an answer, so
+a system that never abstains is never penalized.
 
-**Self-verification and LLM-as-a-judge.** Self-consistency [Wang et al., 2023],
-self-refine [Madaan et al., 2023] and judge-style evaluation [Zheng et al., 2023]
-show models can usefully critique generated artifacts. We apply the judge idea
-*inside* the serving path — as a gate, not an offline metric.
+**Reliability and unanswerable questions.** A smaller thread addresses exactly
+that gap. EHRSQL [6] was, to our knowledge, the first text-to-SQL benchmark to
+include unanswerable questions (about a third of its validation and test
+splits), arguing that hospital deployments cannot tolerate confident guesses;
+its 2024 shared task made abstention a first-class part of the evaluation.
+TrustSQL [7] generalizes this into a reliability benchmark by re-annotating
+three datasets with infeasible questions and scoring models with an explicit
+penalty for wrong answers over abstentions. Our work is complementary: rather
+than proposing another benchmark, we contribute (i) an *intervention* — a
+model-agnostic verification layer that any text-to-SQL stack can adopt without
+fine-tuning — and (ii) an evaluation grounded in a realistic business-analytics
+schema, with an error taxonomy connecting failure classes to the checks that
+catch them. Where TrustSQL scores a model's own abstention decisions, we
+measure how much an external verification layer improves a generator that was
+not trained to abstain.
 
-**Abstention and selective prediction.** Selective QA [Kamath et al., 2020] and
-hallucination-abstention work establish that declining to answer is a first-class
-capability. We port that framing to the analytics-agent setting, where an
-abstention is cheap (the user rephrases) but a wrong number is expensive.
+**Self-verification and critique.** Hallucination in generative models is well
+documented [8]. Several lines of work show LLMs can usefully critique their own
+or other models' outputs: SelfCheckGPT [9] detects hallucination by sampling
+multiple generations and measuring consistency; self-consistency decoding [10]
+aggregates sampled reasoning paths; Self-Refine [11] and Reflexion [12] feed a
+model's critique back into regeneration, a loop our repair mechanism instantiates
+for SQL; CRITIC [13] grounds the critique in external tool calls — the closest
+in spirit to our judge, which sees the executed result, not just the query
+text. LLM-as-a-judge evaluation was validated (and its biases catalogued) by
+Zheng et al. [14]. We differ in *where* the judge sits: not as an offline
+evaluation metric but as a gate in the serving path, with its verdict deciding
+whether an answer reaches the user.
+
+**Selective prediction.** Declining to answer under uncertainty is an
+established capability in QA: Kamath et al. [15] trained calibrators for
+selective question answering under domain shift, and Cole et al. [16] study
+abstention on ambiguous questions. We port this framing to interactive
+analytics, where the asymmetry is stark — an abstention costs the user a
+rephrase, while a confidently-wrong number can silently enter a business
+decision.
 
 ## 3. System
 
@@ -110,14 +146,14 @@ verification off: first executable query wins and is always presented as trusted
 
 ## 4. Evaluation setup
 
-**Dataset.** Olist Brazilian E-Commerce (public, ~100k orders, 8 relational
+**Dataset.** Olist Brazilian E-Commerce [17] (public, ~100k orders, 8 relational
 tables). Experiments run on the full dump; the repo also ships a schema-identical
 synthetic sample so the harness is reproducible with zero downloads.
 
 **Golden set.** 150 questions in six tiers: lookup (20), aggregation (26),
 multi-join (30), temporal (24), ambiguous (18), unanswerable (32 — 21% of the
 set, following EHRSQL's precedent of weighting unanswerable questions heavily
-[Lee et al., 2022]). Answerable
+[6]). Answerable
 questions carry gold SQL, executed against the same database at eval time — so
 gold answers are correct by construction. Unanswerable questions (profit margin,
 churn, marketing channel, returns, conversion, customer age) reference data that
@@ -252,7 +288,71 @@ against the cost of a wrong number in a boardroom slide.
 
 ## References
 
-[Fill during formatting: Spider (Yu et al., EMNLP 2018); BIRD (Li et al.,
-NeurIPS 2023); Self-Consistency (Wang et al., ICLR 2023); Self-Refine (Madaan
-et al., NeurIPS 2023); LLM-as-a-judge (Zheng et al., NeurIPS 2023); Selective QA
-(Kamath et al., ACL 2020).]
+[1] T. Yu, R. Zhang, K. Yang, M. Yasunaga, D. Wang, Z. Li, J. Ma, I. Li,
+Q. Yao, S. Roman, Z. Zhang, and D. Radev, "Spider: A large-scale
+human-labeled dataset for complex and cross-domain semantic parsing and
+text-to-SQL task," in *Proc. EMNLP*, 2018, pp. 3911–3921.
+
+[2] R. Zhong, T. Yu, and D. Klein, "Semantic evaluation for text-to-SQL with
+distilled test suites," in *Proc. EMNLP*, 2020, pp. 396–411.
+
+[3] J. Li, B. Hui, G. Qu, J. Yang, B. Li, B. Li, B. Wang, B. Qin, R. Geng,
+N. Huo, X. Zhou, C. Ma, G. Li, K. C. C. Chang, F. Huang, R. Cheng, and
+Y. Li, "Can LLM already serve as a database interface? A BIg bench for
+large-scale database grounded text-to-SQLs," in *Proc. NeurIPS Datasets and
+Benchmarks Track*, 2023.
+
+[4] M. Pourreza and D. Rafiei, "DIN-SQL: Decomposed in-context learning of
+text-to-SQL with self-correction," in *Proc. NeurIPS*, 2023.
+
+[5] D. Gao, H. Wang, Y. Li, X. Sun, Y. Qian, B. Ding, and J. Zhou,
+"Text-to-SQL empowered by large language models: A benchmark evaluation,"
+*Proc. VLDB Endowment*, vol. 17, no. 5, pp. 1132–1145, 2024.
+
+[6] G. Lee, H. Hwang, S. Bae, Y. Kwon, W. Shin, S. Yang, M. Seo, J.-Y. Kim,
+and E. Choi, "EHRSQL: A practical text-to-SQL benchmark for electronic
+health records," in *Proc. NeurIPS Datasets and Benchmarks Track*, 2022.
+
+[7] G. Lee, W. Chay, S. Cho, and E. Choi, "TrustSQL: Benchmarking text-to-SQL
+reliability with penalty-based scoring," arXiv:2403.15879, 2024.
+
+[8] Z. Ji, N. Lee, R. Frieske, T. Yu, D. Su, Y. Xu, E. Ishii, Y. Bang,
+A. Madotto, and P. Fung, "Survey of hallucination in natural language
+generation," *ACM Computing Surveys*, vol. 55, no. 12, pp. 1–38, 2023.
+
+[9] P. Manakul, A. Liusie, and M. J. F. Gales, "SelfCheckGPT: Zero-resource
+black-box hallucination detection for generative large language models,"
+in *Proc. EMNLP*, 2023, pp. 9004–9017.
+
+[10] X. Wang, J. Wei, D. Schuurmans, Q. Le, E. Chi, S. Narang, A. Chowdhery,
+and D. Zhou, "Self-consistency improves chain of thought reasoning in
+language models," in *Proc. ICLR*, 2023.
+
+[11] A. Madaan, N. Tandon, P. Gupta, S. Hallinan, L. Gao, S. Wiegreffe,
+U. Alon, N. Dziri, S. Prabhumoye, Y. Yang, S. Gupta, B. P. Majumder,
+K. Hermann, S. Welleck, A. Yazdanbakhsh, and P. Clark, "Self-Refine:
+Iterative refinement with self-feedback," in *Proc. NeurIPS*, 2023.
+
+[12] N. Shinn, F. Cassano, A. Gopinath, K. Narasimhan, and S. Yao,
+"Reflexion: Language agents with verbal reinforcement learning," in
+*Proc. NeurIPS*, 2023.
+
+[13] Z. Gou, Z. Shao, Y. Gong, Y. Shen, Y. Yang, N. Duan, and W. Chen,
+"CRITIC: Large language models can self-correct with tool-interactive
+critiquing," in *Proc. ICLR*, 2024.
+
+[14] L. Zheng, W.-L. Chiang, Y. Sheng, S. Zhuang, Z. Wu, Y. Zhuang, Z. Lin,
+Z. Li, D. Li, E. P. Xing, H. Zhang, J. E. Gonzalez, and I. Stoica,
+"Judging LLM-as-a-judge with MT-Bench and Chatbot Arena," in *Proc.
+NeurIPS Datasets and Benchmarks Track*, 2023.
+
+[15] A. Kamath, R. Jia, and P. Liang, "Selective question answering under
+domain shift," in *Proc. ACL*, 2020, pp. 5684–5696.
+
+[16] J. R. Cole, M. J. Q. Zhang, D. Gillick, J. M. Eisenschlos, B. Dhingra,
+and J. Eisenstein, "Selectively answering ambiguous questions," in
+*Proc. EMNLP*, 2023, pp. 530–543.
+
+[17] Olist, "Brazilian e-commerce public dataset by Olist," Kaggle, 2018.
+[Online]. Available:
+https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
