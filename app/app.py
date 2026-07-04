@@ -34,6 +34,42 @@ def get_agent():
     return AskDataAgent(settings=Settings())
 
 
+# --- cost controls for the public demo ---------------------------------
+# identical questions are served from cache (zero tokens), and new API calls
+# stop once the daily token budget is spent
+DAILY_TOKEN_BUDGET = int(os.getenv("ASKDATA_DAILY_TOKEN_BUDGET", "250000"))
+_USAGE_FILE = Path(os.getenv("ASKDATA_USAGE_FILE", "/tmp/askdata_demo_usage.json"))
+
+
+def _tokens_used_today() -> int:
+    import datetime
+    import json
+
+    try:
+        u = json.loads(_USAGE_FILE.read_text())
+        if u.get("date") == str(datetime.date.today()):
+            return int(u.get("tokens", 0))
+    except Exception:
+        pass
+    return 0
+
+
+def _record_tokens(n: int) -> None:
+    import datetime
+    import json
+
+    _USAGE_FILE.write_text(
+        json.dumps({"date": str(datetime.date.today()), "tokens": _tokens_used_today() + n})
+    )
+
+
+@st.cache_data(show_spinner=False, ttl=24 * 3600, max_entries=500)
+def cached_ask(question: str):
+    ans = get_agent().ask(question)
+    _record_tokens(ans.input_tokens + ans.output_tokens)
+    return ans
+
+
 st.title("📊 AskData")
 st.caption(
     "A chat-with-your-data agent that **knows when it's wrong** — every answer is "
@@ -82,8 +118,14 @@ if question:
         st.markdown(question)
 
     with st.chat_message("assistant"):
+        if _tokens_used_today() >= DAILY_TOKEN_BUDGET:
+            st.warning(
+                "The demo's daily budget is used up — previously asked questions "
+                "still answer instantly from cache. Fresh questions return tomorrow."
+            )
+            st.stop()
         with st.spinner("Planning → SQL → executing → verifying…"):
-            ans = get_agent().ask(question)
+            ans = cached_ask(question)
 
         badge, _ = STATUS_BADGE[ans.status]
         st.markdown(f"**{badge}**" + (f" · {ans.attempts} attempt(s)" if ans.attempts > 1 else ""))
