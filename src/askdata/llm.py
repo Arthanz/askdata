@@ -62,17 +62,26 @@ class OpenAIClient:
         # Free tiers (Groq, Cerebras) enforce hourly quotas; the SDK's built-in
         # retries are too short for those, so back off patiently instead of
         # surfacing a burst of 429s as errors mid-eval.
+        kwargs: dict = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        if self.model.startswith(("gpt-5", "o1", "o3", "o4")):
+            # reasoning models: max_tokens is rejected, and hidden reasoning
+            # counts against the completion budget — give headroom, keep
+            # reasoning short so answers aren't starved
+            kwargs["max_completion_tokens"] = max(4000, max_tokens * 3)
+            kwargs["reasoning_effort"] = "low"
+        else:
+            kwargs["max_tokens"] = max_tokens
+
         delay = 30.0
         for attempt in range(20):
             try:
-                resp = self._client.chat.completions.create(
-                    model=self.model,
-                    max_tokens=max_tokens,
-                    messages=[
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
-                )
+                resp = self._client.chat.completions.create(**kwargs)
                 break
             except openai.RateLimitError:
                 if attempt == 19:
