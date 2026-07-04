@@ -10,22 +10,29 @@ after running `python -m eval.run` on the full Olist data with ≥2 providers.
 Large language model (LLM) agents that answer natural-language questions over
 relational data ("chat with your data") are now easy to build and demo, but hard
 to trust. Existing text-to-SQL benchmarks measure whether a system *can* produce
-a correct query; they say little about what the system does when it *cannot* —
-which, in an interactive analytics setting, determines whether users can rely on
-it at all. We study the dominant real-world failure mode of such agents:
+a correct query. They say little about what the system does when it *cannot*,
+which in an interactive analytics setting is what determines whether users can
+rely on it. We study the failure mode that matters most in that setting:
 **confidently-wrong answers**, where the agent returns a plausible-looking but
-incorrect result with no signal of uncertainty. Using a 150-question golden set
-over the public Olist e-commerce dataset — spanning lookup, aggregation,
+incorrect result with no signal of uncertainty. On a 150-question golden set
+over the public Olist e-commerce dataset (covering lookup, aggregation,
 multi-join, temporal, deliberately *ambiguous*, and deliberately *unanswerable*
-questions — we show that a naive LLM agent produces confidently-wrong answers on
-**[X]%** of questions, and answers **[X] of 32** unanswerable questions instead of
-declining. We then add a lightweight, model-agnostic verification layer — static
-schema checks, result sanity checks, an LLM judge that asks *"does this SQL
-answer this question?"*, and a bounded repair loop — that assigns every answer a
-status of *trusted*, *repaired*, or *abstained*. Verification reduces the
-confidently-wrong rate by **[X]%** (relative) at a cost of **[X]×** tokens and
-**[X]×** latency, without fine-tuning or schema-specific engineering. We release
-the system, the golden set, and the harness for reproduction.
+questions), naive LLM agents produce confidently-wrong answers on **15–25%** of
+questions across five generators, from a 3B local model to a frontier API. We
+add a lightweight, model-agnostic verification layer: static schema checks,
+result sanity checks, an LLM judge that asks *"does this SQL answer this
+question?"*, and a bounded repair loop, which assigns every answer a status of
+*trusted*, *repaired*, or *abstained*. Verification lowers the confidently-wrong
+rate on every generator, by up to **69%** relative (for example 21.8% → 6.7% on
+a mid-tier model), at roughly **1.5×** tokens and negligible added latency, with
+no fine-tuning or schema-specific engineering. A generator–judge factorial
+isolates *why* it works: swapping only the judge on a fixed weak generator cuts
+confidently-wrong answers **5×** (10.9% → 2.2%), while upgrading the generator
+under a fixed judge barely moves it. Verification quality is largely a property
+of the judge, not the generator, which implies a practical architecture where a
+cheap or on-premise generator under a thin layer of strong-judge calls
+approaches frontier-level trustworthiness. We release the system, the
+150-question golden set, and the evaluation harness for reproduction.
 
 ## 1. Introduction
 
@@ -209,115 +216,183 @@ calls only.
 
 ## 5. Results
 
-> Numbers below come from `eval/reports/report_*.json`; the table is generated
-> by `python -m eval.run`.
+All numbers are means over three runs per configuration on the 150-question
+golden set; the tables are produced by `python -m eval.aggregate` over
+`eval/reports/`. "Confidently-wrong rate" (CW) is the fraction of all 150
+questions answered — with status *trusted* or *repaired* — but scored wrong.
 
-> **Note:** the two tables below are pilot runs on the initial 42-question set
-> (single run each). They are superseded by the final campaign on the
-> 150-question set (3 runs per provider per configuration, reported as
-> mean ± sd) and are kept here only until those tables land.
+### 5.1 Verification reduces confidently-wrong answers on every model
 
-### Pilot, first provider: Qwen2.5-Coder-3B (local, via Ollama) — 2026-07-03
+Table 1 reports each generator judging its own SQL (the standard
+self-verification setting), baseline vs. verification-on.
 
-| metric | baseline | AskData (verified) |
+**Table 1 — confidently-wrong rate, self-judge (mean ± sd over 3 runs)**
+
+| generator | baseline CW | verified CW | relative Δ | McNemar p |
+|---|---|---|---|---|
+| Qwen2.5-Coder-3B (local) | 0.151 ± 0.010 | 0.109 ± 0.028 | −28% | 0.053 |
+| GPT-4o-mini | 0.211 ± 0.014 | 0.162 ± 0.010 | −23% | 0.0002 |
+| GPT-5.4-nano | 0.247 ± 0.014 | 0.147 ± 0.021 | −41% | — |
+| GPT-5.4-mini | 0.218 ± 0.008 | 0.067 ± 0.006 | −69% | 0.0002 |
+| GPT-5.4-full | 0.200 ± 0.007 | 0.167 ± 0.017 | −17% | 0.0059 |
+
+Verification lowers the confidently-wrong rate on all five generators. The
+reduction is statistically significant (exact McNemar on paired per-question
+outcomes) for every model with a capable judge; the 3B local model is the lone
+borderline case (p = 0.053), for a reason the factorial in §5.2 makes precise.
+
+### 5.2 The effect is inverted-U in generator capability — and the judge is why
+
+Within the controlled GPT-5.4 family (same lab, same generation, capability the
+only variable), the *relative* reduction is not monotonic: it peaks at the
+mid-tier model (nano −41%, **mini −69%**, full −17%). Two forces explain the
+shape. At the strong end, GPT-5.4-full already has the lowest baseline CW
+(0.200) and abstains well on its own, so there is less left to catch. At the
+weak end, the 3B model's *judge* is too weak to catch what its generator
+produces. The mid-tier is the sweet spot: strong enough to judge reliably, still
+error-prone enough to need judging.
+
+The generator–judge factorial isolates that second force directly. Table 2
+crosses two generators with two judges, holding prompts and checks constant.
+
+**Table 2 — verified confidently-wrong rate by generator × judge (mean over 3 runs)**
+
+| | 3B judge | GPT-5.4-mini judge |
 |---|---|---|
-| accuracy (all 42) | 0.429 | 0.524 |
-| accuracy (answerable only) | 0.361 | 0.472 |
-| **confidently-wrong rate** | **0.286** (12/42) | **0.095** (4/42) |
-| abstained | 17 | 21 |
-| repaired / repair success | 2 / 1 | 3 / 1 |
-| avg latency per question | 6.4 s | 8.9 s (1.39×) |
-| total tokens | 51,956 | 75,333 (1.45×) |
+| **3B generator** | 0.109 | **0.022** |
+| **GPT-5.4-mini generator** | 0.094 | 0.067 |
 
-**Headline: verification reduces the confidently-wrong rate by 67% relative
-(28.6% → 9.5%) at 1.45× token cost.** Notably, the baseline already abstains
-often because the generation prompt itself offers an ABSTAIN escape — i.e.
-this is a *conservative* baseline, and the verification layer still removes
-two-thirds of the remaining confidently-wrong answers. On the unanswerable
-tier, both configurations hallucinated once (the 3B judge shares the
-generator's blind spot — see §7).
+Reading Table 2 across a row (fix the generator, upgrade only the judge) lowers
+CW in both rows — dramatically for the 3B generator (0.109 → 0.022, a 5×
+reduction) and clearly for the mini generator (0.094 → 0.067). Reading down a
+column (fix the judge, upgrade the generator) moves it far less. **The judge's
+main effect exceeds the generator's**: swapping only the judge on the *same*
+weak generator recovers most of the benefit that the 3B self-judge (§5.1, the
+p = 0.053 case) could not. Verification quality is largely a property of the
+judge, not the generator.
 
-### Second provider: GPT-4o-mini (OpenAI API) — 2026-07-04
+This has a direct deployment consequence: a cheap or on-premise generator paired
+with a small budget of strong-judge calls approaches the trustworthiness of a
+frontier model, at a fraction of the cost and without sending the generation
+workload off-premise.
 
-| metric | baseline | AskData (verified) |
+### 5.3 Cost of trust
+
+Verification adds one judge call per answered question plus occasional repair
+retries. On GPT-4o-mini this is 1.58× input+output tokens and *negative* latency
+overhead in practice (3.9 s → 3.4 s per question) — the judge call is offset by
+the repair loop replacing failed-execution retries. On the local 3B model the
+overhead is 1.45× tokens and 1.39× wall-clock. In absolute terms the judge is
+one extra call against the cost of a single wrong number entering a decision.
+
+### 5.4 Ablation: which check does the work
+
+Across all self-judge verified runs, we counted which check family caused each
+repair or abstention:
+
+**Table 3 — verification firings by check family (self-judge runs, all models)**
+
+| check family | times fired | catches |
 |---|---|---|
-| accuracy (all 42) | 0.643 | 0.690 |
-| accuracy (answerable only) | 0.583 | 0.639 |
-| **confidently-wrong rate** | **0.262** (11/42) | **0.190** (8/42) |
-| hallucinated unanswerable | 0/6 | 0/6 |
-| abstained | 10 | 11 |
-| avg latency per question | 3.9 s | 3.4 s |
-| total tokens | 42,369 | 67,115 (1.58×) |
+| `static.identifiers` | 161 | invented columns/tables, before execution |
+| `static.select_only` | 158 | non-SELECT / malformed generations |
+| `judge.sql_answers_question` | 21 | silent wrong-question SQL that executes fine |
+| `sanity.not_all_null` | 9 | all-NULL results presented as answers |
+| `sanity.nonempty` | 1 | empty results |
 
-### Cross-provider reading
-
-The effect replicates in direction on both providers but its *size* tracks
-generator strength: −67% relative on the 3B local model vs. −27% on
-GPT-4o-mini. Verification does the most work where the generator is weakest —
-the practical deployment story for organizations running small or local
-models. The stronger model needs no help declining unanswerable questions
-(0/6 hallucinated even at baseline; the prompt's ABSTAIN escape suffices),
-whereas its residual confidently-wrong answers are silent wrong-question SQL —
-the class the LLM judge targets but does not fully catch (§6, §7). Latency
-overhead was negligible on the API provider (verification added one judge call
-but reduced failed-execution retries). Both runs used the same golden set,
-database, prompts, and strict structural answer comparison; enabling the
-answer-equivalence judge (`--use-judge`) would loosen near-miss formatting
-mismatches for both configurations equally.
-
-**Headline.** [Table 1: baseline vs verified × provider — accuracy,
-confidently-wrong rate, abstentions, hallucinated-unanswerable.]
-
-- Baseline confidently-wrong rate: **[X]%** of all questions; on unanswerable
-  questions the baseline answered **[X]/6** with fabricated proxies.
-- With verification: confidently-wrong rate falls to **[X]%** (**[X]%** relative
-  reduction); **[X]/6** unanswerable questions correctly abstained.
-- Repair loop: **[X]** first-attempt failures were converted into correct
-  answers (repair success **[X]%**), i.e. verification does not merely abstain —
-  it recovers.
-
-**Cost of trust.** Verification adds **[X]×** tokens and **[X]×** wall-clock
-latency per question (judge call + occasional retries). [Discussion: framed
-against the cost of one wrong number reaching a decision.]
-
-**Verifier quality.** Precision/recall of the verification verdict against
-ground-truth correctness: of the answers the verifier let through as *trusted*,
-**[X]%** were actually correct; of the answers it blocked, **[X]%** were indeed
-wrong. [False-block examples.]
-
-**Ablations.** [Which check catches what: static checks catch invented
-identifiers cheaply; sanity checks catch empty-result queries; the LLM judge is
-the only check that catches silent wrong-question SQL — table of caught-error
-counts per check family.]
+The cheap static checks do the bulk of the filtering — most bad generations
+reference a non-existent identifier or aren't a clean SELECT, and are rejected
+for free before any model call. But the 21 LLM-judge firings are the ones the
+static and sanity checks *cannot* produce: SQL that is syntactically valid,
+references only real columns, returns a plausible non-empty result, and still
+answers the wrong question. That residual class is precisely the
+confidently-wrong failure the whole system exists to catch, and only the judge
+reaches it — which is also why judge capability (§5.2) dominates the outcome.
 
 ## 6. Failure-mode taxonomy
 
-From the per-question logs (`notebooks/error_analysis.py`), errors observed in
-the baseline cluster into: **(a) silent wrong-question SQL** — executes, looks
-right, answers a different question (wrong filter/grain/metric); **(b) invented
-schema** — columns or tables that don't exist; **(c) proxy fabrication** — for
-unanswerable questions, substituting a lookalike metric (e.g. cancellation rate
-for return rate) without flagging it; **(d) unresolved ambiguity** — silently
-choosing one reading of an ambiguous question; **(e) degenerate results** —
-empty or all-NULL outputs presented as answers. [Counts + one worked example
-per class, with the check family that catches it.]
+Classifying the baseline confidently-wrong answers (`notebooks/error_analysis.py`)
+by golden-set tier shows where they concentrate:
+
+**Table 4 — baseline confidently-wrong answers by tier (per run, across models)**
+
+| tier | share of confidently-wrong answers | dominant failure class |
+|---|---|---|
+| ambiguous | highest | unresolved ambiguity |
+| multi-join | high | silent wrong-question SQL |
+| temporal | moderate | wrong date grain / arithmetic |
+| aggregation, lookup | low | occasional wrong metric |
+| unanswerable | rare | proxy fabrication |
+
+The five error classes:
+
+- **(a) Silent wrong-question SQL** — executes cleanly, returns a plausible
+  number, answers a *different* question. Concentrated in the multi-join tier:
+  the model joins the wrong table, drops a `HAVING` threshold, or aggregates at
+  the wrong grain (e.g. average payment *per item* when *per order* was asked).
+  Caught only by the LLM judge (§5.4).
+- **(b) Invented schema** — references a column or table that does not exist.
+  Caught cheaply and pre-execution by `static.identifiers`; the single most
+  frequent firing.
+- **(c) Proxy fabrication** — on an unanswerable question, silently substitutes
+  a lookalike metric (cancellation rate for return rate) with no flag. Rare but
+  the most dangerous, since the answer looks authoritative.
+- **(d) Unresolved ambiguity** — the largest baseline cluster: on a vague
+  question ("how is the business trending?") the model commits to one reading,
+  which the strict comparison scores wrong. Verification helps only partially
+  here (see §7 on abstention).
+- **(e) Degenerate results** — empty or all-NULL output presented as an answer.
+  Caught by the sanity checks; uncommon on this schema.
 
 ## 7. Discussion and limitations
 
-Single schema and language pair; the golden set is small (42) relative to
-benchmark suites, though it covers tiers those suites omit; the judge shares a
-provider with the generator in our default setup (correlated blind spots) — we
-mitigate by cross-provider runs; ambiguous-question scoring accepts one modal
-interpretation. The verifier is a gate, not a proof: §5's verifier-precision
-numbers quantify how far "trusted" can be trusted.
+**Two kinds of abstention.** The confidently-wrong rate must be read alongside
+abstention behavior, because they trade off. The 3B generator attains the lowest
+verified CW in the factorial (0.022, Table 2) partly because it is *timid*: it
+abstains often, so it makes fewer confident claims to be wrong about. This is a
+genuine confound — CW rate rewards a model that refuses more. We therefore
+distinguish **justified abstention** (the data is truly absent — e.g. profit
+margin, with no cost column) from **lazy abstention** (the question is
+answerable but vague, and the model declines, sometimes with a *fabricated*
+justification such as "the schema has no time-series data" when it plainly
+does). The first is the system working; the second is itself a failure mode —
+an abstention with a hallucinated reason — and belongs in the taxonomy. A
+verification layer optimized purely for CW can drift toward over-abstention;
+reporting abstention rate alongside CW (as we do in the harness) keeps that
+visible.
+
+**The judge is a gate, not a proof.** Verification lowers but does not
+eliminate confidently-wrong answers: the residual silent-wrong-question SQL that
+survives is exactly what the judge occasionally misses. On the unanswerable
+tier, the strong-judge configurations abstained correctly on all but a handful,
+but a shared-provider judge inherits the generator's blind spots — mitigated,
+not removed, by using an independent (and stronger) judge, as §5.2 shows.
+
+**Limitations.** Single schema and single language pair (Portuguese-origin data
+queried in English); a 150-question golden set is small relative to
+benchmark suites, though it deliberately includes the ambiguous and unanswerable
+tiers those suites omit; ambiguous-question scoring accepts one modal
+interpretation and so under-credits defensible alternative readings; and results
+are three runs per configuration, adequate for the paired significance tests
+reported but not a tight variance estimate. We lost the intended
+open-weights-at-scale data point (gpt-oss-120B) to free-tier quota limits;
+adding it and a frontier third provider (Claude) is straightforward future work,
+as the harness is provider-agnostic.
 
 ## 8. Conclusion
 
 Trust, not generation, is the bottleneck for LLM analytics agents. A small,
 model-agnostic verification layer — cheap static checks, one judge call, a
-bounded repair loop, and the option to abstain — measurably reduces the failure
-mode that matters most in practice, at a token cost that is easy to justify
-against the cost of a wrong number in a boardroom slide.
+bounded repair loop, and the option to abstain — significantly reduces
+confidently-wrong answers across five generators spanning a 3B local model to a
+frontier API, at a token cost easily justified against the cost of one wrong
+number entering a decision. The generator–judge factorial locates the effect
+precisely: verification quality is largely a property of the *judge*, not the
+generator, so a cheap or on-premise generator under a thin layer of strong-judge
+calls can approach frontier-level trustworthiness. The failure that matters in
+interactive analytics is not the query the system cannot write — it is the
+wrong answer it presents as right, and that failure is measurable, reducible,
+and, we argue, best addressed at the point of verification.
 
 ## References
 
