@@ -9,7 +9,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from askdata.agent import AskDataAgent  # noqa: E402
-from askdata.charts import chart_for  # noqa: E402
+from askdata.charts import chart_for, money_columns  # noqa: E402
 from askdata.config import Settings  # noqa: E402
 
 st.set_page_config(page_title="AskData", page_icon="📊", layout="wide")
@@ -135,8 +135,19 @@ if question:
             fig = chart_for(ans.df)
             if fig is not None:
                 st.plotly_chart(fig, use_container_width=True)
-            if ans.df.shape != (1, 1):
-                st.dataframe(ans.df, use_container_width=True, hide_index=True)
+            money = money_columns(ans.df)
+            if ans.df.shape == (1, 1):
+                col, val = ans.df.columns[0], ans.df.iat[0, 0]
+                if col in money:
+                    st.metric(col.replace("_", " "), f"R$ {val:,.2f}")
+                elif isinstance(val, (int, float)):
+                    st.metric(col.replace("_", " "), f"{val:,.2f}".rstrip("0").rstrip("."))
+            else:
+                shown = (
+                    ans.df.style.format({c: "R$ {:,.2f}" for c in money}).hide(axis="index")
+                    if money else ans.df
+                )
+                st.dataframe(shown, use_container_width=True, hide_index=not money)
 
         with st.expander("Details: SQL + verification checks"):
             if ans.sql:
