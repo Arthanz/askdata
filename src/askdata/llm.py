@@ -55,14 +55,30 @@ class OpenAIClient:
         self._client = openai.OpenAI(base_url=base_url, api_key=api_key) if base_url else openai.OpenAI()
 
     def complete(self, system: str, user: str, max_tokens: int = 1500) -> LLMResponse:
-        resp = self._client.chat.completions.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
+        import time
+
+        import openai
+
+        # Free tiers (Groq, Cerebras) enforce hourly quotas; the SDK's built-in
+        # retries are too short for those, so back off patiently instead of
+        # surfacing a burst of 429s as errors mid-eval.
+        delay = 30.0
+        for attempt in range(20):
+            try:
+                resp = self._client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                )
+                break
+            except openai.RateLimitError:
+                if attempt == 19:
+                    raise
+                time.sleep(min(delay, 300))
+                delay *= 1.6
         usage = resp.usage
         return LLMResponse(
             text=resp.choices[0].message.content or "",
