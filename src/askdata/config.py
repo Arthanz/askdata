@@ -27,6 +27,9 @@ class Settings:
     gemini_model: str = field(
         default_factory=lambda: os.getenv("ASKDATA_GEMINI_MODEL", "gemini-2.5-flash")
     )
+    groq_model: str = field(
+        default_factory=lambda: os.getenv("ASKDATA_GROQ_MODEL", "llama-3.3-70b-versatile")
+    )
     db_path: Path = field(
         default_factory=lambda: Path(os.getenv("ASKDATA_DB", str(DEFAULT_DB_PATH)))
     )

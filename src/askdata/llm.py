@@ -100,4 +100,10 @@ def get_client(settings: Settings | None = None) -> LLMClient:
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             api_key=os.getenv("GEMINI_API_KEY"),
         )
+    if provider == "groq":  # free-tier key from console.groq.com; open-weights models
+        return OpenAIClient(
+            settings.groq_model,
+            base_url="https://api.groq.com/openai/v1",
+            api_key=os.getenv("GROQ_API_KEY"),
+        )
     raise ValueError(f"Unknown provider: {provider!r}")
