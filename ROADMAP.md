@@ -27,6 +27,6 @@
 - Error-analysis pass → failure-mode taxonomy with per-class counts (paper §6)
 - Ablation: which verification check catches which failure class (paper §5)
 - Finish paper draft, format for target venue
-- Deploy the Streamlit app to a public URL
+- ~~Deploy the Streamlit app~~ ✅ live at askdata-arthanz.streamlit.app
 - Optional: push marts to BigQuery + a public Looker Studio dashboard
 - Short findings deck (delivery delay → review risk → targeted outreach)

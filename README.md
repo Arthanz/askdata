@@ -14,7 +14,7 @@ repairs what it can, and refuses what it can't — tagging each answer
 **trusted**, **repaired**, or **abstained**. How much that helps is measured,
 not claimed; the measurement is also a paper draft (see `paper/`).
 
-> **Live demo:** _(link once deployed)_ · **Paper:** [`paper/DRAFT.md`](paper/DRAFT.md)
+> **Live demo:** [askdata-arthanz.streamlit.app](https://askdata-arthanz.streamlit.app/) · **Paper:** [`paper/DRAFT.md`](paper/DRAFT.md)
 
 ## Architecture
 
