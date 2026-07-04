@@ -152,6 +152,8 @@ def main(argv=None):
     meta = {
         "provider": provider,
         "model": model,
+        "judge": (f"{settings.judge_provider}:{settings.judge_model}"
+                  if settings.judge_provider else "self"),
         "tag": args.tag,
         "n_questions": len(items),
         "timestamp": datetime.now().isoformat(timespec="seconds"),

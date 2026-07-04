@@ -52,10 +52,20 @@ class AskDataAgent:
         llm: LLMClient | None = None,
         settings: Settings | None = None,
         verify: bool = True,
+        judge_llm: LLMClient | None = None,
     ):
         self.settings = settings or Settings()
         self.verify = verify
         self.llm = llm or get_client(self.settings)
+        # the judge may be a different model than the generator (capability factorial)
+        if judge_llm is not None:
+            self.judge_llm = judge_llm
+        elif self.settings.judge_provider:
+            self.judge_llm = get_client(
+                self.settings, provider=self.settings.judge_provider, model=self.settings.judge_model
+            )
+        else:
+            self.judge_llm = self.llm
         path = str(db_path or self.settings.db_path)
         self.con = duckdb.connect(path, read_only=True)
         self.schema_text = schema_prompt(self.con)
@@ -107,7 +117,7 @@ class AskDataAgent:
                     continue
                 try:
                     judge_check, jresp = judge_sql(
-                        self.llm, question, sql, self.schema_text, result.df
+                        self.judge_llm, question, sql, self.schema_text, result.df
                     )
                     ans.input_tokens += jresp.input_tokens
                     ans.output_tokens += jresp.output_tokens

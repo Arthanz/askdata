@@ -17,8 +17,10 @@
 
 **In progress**
 
-- Full eval campaign: 150 questions × 4 providers × 3 runs, reported as
+- Full eval campaign: 150 questions × 6 models × 3 runs (Groq dropped — quota-bound), reported as
   mean ± sd with per-question paired significance tests
+- Generator–judge 2×2 factorial (weak/strong generator × weak/strong judge)
+- GPT-5.4 within-family sweep: nano / mini / full
 
 **Next**
 

@@ -52,41 +52,45 @@ def fmt(values: list[float]) -> str:
 
 
 def main():
-    by_provider: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    by_provider: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
     for path in sorted(REPORTS.glob("report_*.json")):
         data = json.loads(path.read_text())
         if "meta" not in data or not data["meta"].get("tag"):
             continue
         m = data["meta"]
-        by_provider[(m["provider"], m["model"])].append(data)
+        by_provider[(m["provider"], m["model"], m.get("judge", "self"))].append(data)
 
     lines = ["# Aggregated eval results", ""]
-    for (provider, model), runs in sorted(by_provider.items()):
-        lines.append(f"## {provider} — `{model}` ({len(runs)} run{'s' if len(runs) > 1 else ''})")
+    for (provider, model, judge), runs in sorted(by_provider.items()):
+        judge_note = "" if judge == "self" else f", judge = `{judge}`"
+        lines.append(f"## {provider} — `{model}`{judge_note} ({len(runs)} run{'s' if len(runs) > 1 else ''})")
         lines.append("")
+        has_base = all(BASELINE in r["configs"] for r in runs)
+        has_ver = all(VERIFIED in r["configs"] for r in runs)
         lines.append("| metric | baseline | verified |")
         lines.append("|---|---|---|")
         for key, label in METRICS:
-            base = [r["configs"][BASELINE]["summary"][key] for r in runs]
-            ver = [r["configs"][VERIFIED]["summary"][key] for r in runs]
-            lines.append(f"| {label} | {fmt(base)} | {fmt(ver)} |")
+            base = [r["configs"][BASELINE]["summary"][key] for r in runs] if has_base else None
+            ver = [r["configs"][VERIFIED]["summary"][key] for r in runs] if has_ver else None
+            lines.append(f"| {label} | {fmt(base) if base else '—'} | {fmt(ver) if ver else '—'} |")
 
-        # paired McNemar on confidently-wrong outcomes, per (question, run) pair
-        b = c = 0
-        for r in runs:
-            base_rows = {x["id"]: x for x in r["configs"][BASELINE]["rows"]}
-            ver_rows = {x["id"]: x for x in r["configs"][VERIFIED]["rows"]}
-            for qid in base_rows:
-                bw, vw = is_cw(base_rows[qid]), is_cw(ver_rows[qid])
-                b += bw and not vw
-                c += vw and not bw
-        p = mcnemar_p(b, c)
-        lines.append("")
-        lines.append(
-            f"Paired confidently-wrong outcomes across {len(runs)} run(s): "
-            f"baseline-only CW on {b} question-runs, verified-only CW on {c}; "
-            f"exact McNemar p = {p:.2g}."
-        )
+        if has_base and has_ver:
+            # paired McNemar on confidently-wrong outcomes, per (question, run) pair
+            b = c = 0
+            for r in runs:
+                base_rows = {x["id"]: x for x in r["configs"][BASELINE]["rows"]}
+                ver_rows = {x["id"]: x for x in r["configs"][VERIFIED]["rows"]}
+                for qid in base_rows:
+                    bw, vw = is_cw(base_rows[qid]), is_cw(ver_rows[qid])
+                    b += bw and not vw
+                    c += vw and not bw
+            p = mcnemar_p(b, c)
+            lines.append("")
+            lines.append(
+                f"Paired confidently-wrong outcomes across {len(runs)} run(s): "
+                f"baseline-only CW on {b} question-runs, verified-only CW on {c}; "
+                f"exact McNemar p = {p:.2g}."
+            )
         lines.append("")
 
     out = "\n".join(lines)

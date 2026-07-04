@@ -48,6 +48,18 @@ def test_abstains_after_repeated_judge_failures(db_path):
     assert ans.attempts == 3
 
 
+def test_separate_judge_client(db_path):
+    gen = ScriptedClient([GOOD_SQL, "1,200 orders."])
+    judge = ScriptedClient([PASS])
+    agent = AskDataAgent(
+        db_path=str(db_path), llm=gen, judge_llm=judge, settings=Settings(max_attempts=3)
+    )
+    ans = agent.ask("How many orders are there?")
+    assert ans.status == "trusted"
+    assert len(judge.calls) == 1  # the judge ran on its own client
+    assert len(gen.calls) == 2    # generation + summary stayed on the generator
+
+
 def test_baseline_skips_verification(db_path):
     # no judge/summary-judge responses needed beyond generation + summary
     agent = make_agent(db_path, [GOOD_SQL, "1,200 orders."], verify=False)

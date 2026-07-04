@@ -110,30 +110,34 @@ class ScriptedClient:
         return LLMResponse(text=self._responses.pop(0))
 
 
-def get_client(settings: Settings | None = None) -> LLMClient:
+def get_client(
+    settings: Settings | None = None,
+    provider: str | None = None,
+    model: str | None = None,
+) -> LLMClient:
     settings = settings or Settings()
-    provider = settings.resolved_provider()
+    provider = provider or settings.resolved_provider()
     if provider == "anthropic":
-        return AnthropicClient(settings.anthropic_model)
+        return AnthropicClient(model or settings.anthropic_model)
     if provider == "openai":
-        return OpenAIClient(settings.openai_model)
+        return OpenAIClient(model or settings.openai_model)
     if provider == "ollama":  # free local models — install from ollama.com, then e.g. `ollama pull qwen2.5-coder:7b`
-        return OpenAIClient(settings.ollama_model, base_url="http://localhost:11434/v1", api_key="ollama")
+        return OpenAIClient(model or settings.ollama_model, base_url="http://localhost:11434/v1", api_key="ollama")
     if provider == "gemini":  # free-tier key from aistudio.google.com; OpenAI-compatible endpoint
         return OpenAIClient(
-            settings.gemini_model,
+            model or settings.gemini_model,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             api_key=os.getenv("GEMINI_API_KEY"),
         )
     if provider == "groq":  # free-tier key from console.groq.com; open-weights models
         return OpenAIClient(
-            settings.groq_model,
+            model or settings.groq_model,
             base_url="https://api.groq.com/openai/v1",
             api_key=os.getenv("GROQ_API_KEY"),
         )
     if provider == "cerebras":  # free-tier key from cloud.cerebras.ai; open-weights models
         return OpenAIClient(
-            settings.cerebras_model,
+            model or settings.cerebras_model,
             base_url="https://api.cerebras.ai/v1",
             api_key=os.getenv("CEREBRAS_API_KEY"),
         )

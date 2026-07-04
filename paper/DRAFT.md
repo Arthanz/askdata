@@ -55,6 +55,11 @@ Interactive analytics encounters both constantly.
 3. **Measurements** of the trade-off: the reduction in confidently-wrong answers
    against the token/latency overhead, with ablations showing which check does
    the work (§5).
+4. A **generator–judge factorial**: by decoupling the judge model from the
+   generator, we test whether verification quality is a property of the judge
+   rather than of the pipeline — to our knowledge the first such decomposition
+   for text-to-SQL verification, with direct consequences for deploying cheap
+   local generators under a thin layer of strong-judge calls.
 
 The contribution is deliberately not a new generator: it is an evaluation and an
 intervention that any text-to-SQL stack can adopt.
@@ -171,8 +176,36 @@ score for shaped-differently answers; we report both.
 hallucinated-unanswerable count; abstention rate; repair success rate; attempts,
 latency, and token overhead.
 
-**Configurations.** Baseline (verification off) vs. AskData (verification on),
-each run with two model providers to check the effect is not provider-specific.
+**Configurations.** Baseline (verification off) vs. AskData (verification on).
+Each configuration runs three times per model; we report mean ± sd across runs
+and an exact McNemar test on paired per-question confidently-wrong outcomes.
+
+**Model selection.** Models were chosen to span deployment tiers while
+controlling the confounds that cross-vendor comparisons usually carry:
+
+- *Qwen2.5-Coder-3B (local, via Ollama)* — the on-premise/privacy tier:
+  organizations in regulated settings often cannot send data to external APIs.
+  It is also the weakest generator in the study, anchoring the capability axis;
+  we use a code-specialized model so that small-model results are not an
+  artifact of evaluating a generalist.
+- *gpt-oss-120B (open weights, via Cerebras)* — the strongest self-hostable
+  open model, testing whether openness at scale behaves like a closed frontier
+  model.
+- *GPT-5.4-nano / -mini / -full* — a **within-family capability sweep**: same
+  lab, same generation, same training recipe, so generator capability is the
+  only variable. Prior comparisons across vendors confound capability with
+  training data, alignment style, and API behavior.
+- *GPT-4o-mini* — a previous-generation anchor and, in practice, the most
+  widely deployed budget API model.
+
+**Generator–judge factorial.** Self-verification couples two distinct
+abilities: *generating* SQL and *judging* it. Because our judge is an
+independent model call, we can decouple them: a 2×2 factorial crossing
+{weak (3B), strong (5.4-mini)} generators with {weak, strong} judges, holding
+every prompt and check constant. If the verification benefit tracks judge
+capability rather than generator capability, the deployment implication is
+direct: run a cheap local generator and spend a small API budget on judge
+calls only.
 
 ## 5. Results
 
