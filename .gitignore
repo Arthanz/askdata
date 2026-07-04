@@ -9,3 +9,4 @@ data/olist/
 .pytest_cache/
 .DS_Store
 .ipynb_checkpoints/
+data/*.duckdb.tmp/

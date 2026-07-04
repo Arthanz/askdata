@@ -106,4 +106,10 @@ def get_client(settings: Settings | None = None) -> LLMClient:
             base_url="https://api.groq.com/openai/v1",
             api_key=os.getenv("GROQ_API_KEY"),
         )
+    if provider == "cerebras":  # free-tier key from cloud.cerebras.ai; open-weights models
+        return OpenAIClient(
+            settings.cerebras_model,
+            base_url="https://api.cerebras.ai/v1",
+            api_key=os.getenv("CEREBRAS_API_KEY"),
+        )
     raise ValueError(f"Unknown provider: {provider!r}")

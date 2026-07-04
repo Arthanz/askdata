@@ -116,7 +116,7 @@ def judge_sql(
         f"{schema_text}\n\n### Question\n{question}\n\n### SQL\n{sql}\n\n"
         f"### Result preview ({len(df)} rows)\n{preview}"
     )
-    resp = llm.complete(JUDGE_SYSTEM, user, max_tokens=300)
+    resp = llm.complete(JUDGE_SYSTEM, user, max_tokens=1000)
     verdict, reason = _parse_judge(resp.text)
     return Check("judge.sql_answers_question", verdict == "pass", reason), resp
 

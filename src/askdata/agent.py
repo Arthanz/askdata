@@ -138,7 +138,7 @@ class AskDataAgent:
             resp = self.llm.complete(
                 SUMMARY_SYSTEM,
                 f"Question: {question}\n\nSQL:\n{sql}\n\nResult ({len(df)} rows):\n{preview}",
-                max_tokens=300,
+                max_tokens=1000,
             )
             return resp.text.strip()
         except Exception:
