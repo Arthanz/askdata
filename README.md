@@ -90,4 +90,19 @@ askdata/
 └── notebooks/     # error analysis
 ```
 
+## Where the paper's numbers come from
+
+Every figure in [`paper/DRAFT.md`](paper/DRAFT.md) §5 traces to raw logs in this
+repo — nothing is hand-entered:
+
+1. [`eval/golden.jsonl`](eval/golden.jsonl) — the 150 questions with hand-written gold SQL
+2. [`eval/reports/report_<model>-run<N>_*.json`](eval/reports) — one file per run,
+   with per-question status, generated SQL, result, tokens, and timing (26 runs committed)
+3. `python -m eval.aggregate` — recomputes every table (mean ± sd, McNemar tests)
+   from those JSONs; output in [`eval/reports/AGGREGATE.md`](eval/reports/AGGREGATE.md)
+4. `python -m eval.run` — reruns the whole experiment from scratch with your own keys
+
+So the audit trail is: golden set → run logs → aggregation script → paper tables,
+all versioned in git.
+
 [`ROADMAP.md`](ROADMAP.md) tracks what's done and what's left.
