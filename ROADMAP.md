@@ -6,7 +6,7 @@
 - Provider-agnostic LLM client (Anthropic / OpenAI / Gemini / Ollama)
 - Agent: schema context → SQL → execute → verify → repair → answer,
   with trusted / repaired / abstained statuses
-- 28 deterministic tests (scripted LLM, no API key)
+- 29 deterministic tests (scripted LLM, no API key)
 - Golden set: 150 questions in six tiers, incl. ambiguous and unanswerable;
   all gold SQL validated against both the full data and the sample
 - Star-schema warehouse (`dw`) + marts, documented in `docs/DATA_MODEL.md`
@@ -14,19 +14,17 @@
   scores landed back as `dw.mart_review_risk`
 - Streamlit app with confidence badges
 - Pilot eval runs (42-question set) on Ollama and OpenAI
-
-**In progress**
-
-- Full eval campaign: 150 questions × 6 models × 3 runs (Groq dropped — quota-bound), reported as
-  mean ± sd with per-question paired significance tests
+- Full eval campaign: 150 questions × 5 models × 3 runs, reported as
+  mean ± sd with exact McNemar paired significance tests (`eval/reports/AGGREGATE.md`)
 - Generator–judge 2×2 factorial (weak/strong generator × weak/strong judge)
 - GPT-5.4 within-family sweep: nano / mini / full
+- Ablation: which verification check fires on which failure class (paper §5)
+- Error-analysis pass → failure-mode taxonomy (paper §6)
+- Paper draft complete through §7 (paper/DRAFT.md)
 
 **Next**
 
-- Error-analysis pass → failure-mode taxonomy with per-class counts (paper §6)
-- Ablation: which verification check catches which failure class (paper §5)
-- Finish paper draft, format for target venue
+- Format paper for target venue
 - ~~Deploy the Streamlit app~~ ✅ live at askdata-arthanz.streamlit.app
 - Optional: push marts to BigQuery + a public Looker Studio dashboard
 - Short findings deck (delivery delay → review risk → targeted outreach)

@@ -32,13 +32,23 @@ not claimed; the measurement is also a paper draft (see `paper/`).
 aggregation, multi-join, temporal, ambiguous, unanswerable), gold answers
 computed by executing hand-written gold SQL on the same database:
 
-| confidently-wrong rate (pilot, 42q) | baseline | verified | change |
-|---|---|---|---|
-| Qwen2.5-Coder-3B (local, Ollama) | 28.6% | 9.5% | −67% |
-| GPT-4o-mini (OpenAI) | 26.2% | 19.0% | −27% |
+Full campaign — 150 questions × 5 models × 3 runs each, self-judge, exact
+McNemar tests on paired confidently-wrong outcomes:
 
-_(pilot numbers; the full campaign — 150 questions × 4 providers × 3 runs —
-is in progress and will replace this table)_
+| confidently-wrong rate | baseline | verified | change | p |
+|---|---|---|---|---|
+| Qwen2.5-Coder-3B (local, Ollama) | 15.1% | 10.9% | −28% | 0.053 |
+| GPT-4o-mini | 21.1% | 16.2% | −23% | 0.0002 |
+| GPT-5.4-nano | 24.7% | 14.7% | −41% | 1.6e-07 |
+| GPT-5.4-mini | 21.8% | 6.7% | −69% | 1.7e-15 |
+| GPT-5.4 | 20.0% | 16.7% | −17% | 0.0059 |
+
+The reduction peaks mid-range rather than growing with model capability, and a
+generator×judge factorial shows the judge matters more than the generator:
+keeping the weak 3B generator but giving it GPT-5.4-mini as judge cuts its
+confidently-wrong rate from 10.9% to 2.2%. Full tables (incl. the factorial
+and per-check ablation) in [`eval/reports/AGGREGATE.md`](eval/reports/AGGREGATE.md)
+and [`paper/DRAFT.md`](paper/DRAFT.md) §5.
 
 **Review-risk model** — trained on 95,823 delivered orders:
 
@@ -68,7 +78,7 @@ pip install -r requirements.txt && pip install -e .
 python -m askdata.load_data        # data/askdata.duckdb (sample, or full Olist if CSVs in data/olist/)
 python -m askdata.warehouse        # star schema + marts (dw.*)
 python -m predict.review_risk      # trains the risk model, writes dw.mart_review_risk
-pytest                             # 28 tests, no API key needed
+pytest                             # 29 tests, no API key needed
 
 cp .env.example .env               # add a provider key (or install Ollama for free local models)
 streamlit run app/app.py           # the demo
