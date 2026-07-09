@@ -63,8 +63,8 @@ defensible readings. Interactive analytics encounters both constantly.
    decomposition for text-to-SQL verification, with direct consequences for
    deploying cheap local generators under a thin layer of strong-judge calls.
 
-The contribution is deliberately not a new generator. It is an evaluation and an
-intervention that any text-to-SQL stack can adopt.
+We deliberately do not propose a new generator; the evaluation and the
+intervention are designed to bolt onto any existing text-to-SQL stack.
 
 ## 2. Related work
 
@@ -82,14 +82,14 @@ self-correction stage, DAIL-SQL [6] systematically benchmarks prompt designs and
 approaches human performance on Spider, and more recent agentic pipelines add
 schema retrieval and pruning (CHESS [7]) or multiple collaborating agents,
 including a query-refining agent close in spirit to our repair loop (MAC-SQL
-[8]). All of this work measures whether a system *can* produce correct SQL. None
+[8]). All of this work measures a system's ability to produce correct SQL, and none
 of it models what the system should do when it cannot: every question in Spider
 and BIRD has an answer, so a system that never abstains is never penalized. Even
 Spider 2.0 [9], which raises difficulty to realistic enterprise workflows,
 keeps every task answerable.
 
-**Reliability and unanswerable questions.** A smaller thread addresses exactly
-that gap. EHRSQL [10] was, to our knowledge, the first text-to-SQL benchmark to
+**Reliability and unanswerable questions.** A smaller thread addresses that
+gap. EHRSQL [10] was, to our knowledge, the first text-to-SQL benchmark to
 include unanswerable questions (about a third of its validation and test
 splits), arguing that hospital deployments cannot tolerate confident guesses;
 its 2024 shared task made abstention a first-class part of the evaluation.
@@ -312,7 +312,7 @@ reference a non-existent identifier or aren't a clean SELECT, and are rejected
 for free before any model call. But the 21 LLM-judge firings are the ones the
 static and sanity checks *cannot* produce: SQL that is syntactically valid,
 references only real columns, returns a plausible non-empty result, and still
-answers the wrong question. That residual class is precisely the
+answers the wrong question. That residual class is the
 confidently-wrong failure the whole system exists to catch, and only the judge
 reaches it, which is also why judge capability (§5.2) dominates the outcome.
 
@@ -369,7 +369,7 @@ alongside CW (as we do in the harness) keeps that visible.
 
 **The judge is a gate, not a proof.** Verification lowers but does not eliminate
 confidently-wrong answers: the residual silent-wrong-question SQL that survives
-is exactly what the judge occasionally misses. On the unanswerable tier, the
+is what the judge occasionally misses. On the unanswerable tier, the
 strong-judge configurations abstained correctly on all but a handful, but a
 shared-provider judge inherits the generator's blind spots, mitigated but not
 removed by using an independent (and stronger) judge, as §5.2 shows.
@@ -392,13 +392,13 @@ model-agnostic verification layer of cheap static checks, one judge call, a
 bounded repair loop, and the option to abstain significantly reduces
 confidently-wrong answers across five generators spanning a 3B local model to a
 frontier API, at a token cost easily justified against the cost of one wrong
-number entering a decision. The generator–judge factorial locates the effect
-precisely: verification quality is largely a property of the *judge*, not the
+number entering a decision. The generator–judge factorial locates the effect:
+verification quality is largely a property of the *judge*, not the
 generator, so a cheap or on-premise generator under a thin layer of strong-judge
 calls can approach frontier-level trustworthiness. The failure that matters in
-interactive analytics is not the query the system cannot write. It is the wrong
-answer it presents as right, and that failure is measurable, reducible, and best
-addressed at the point of verification.
+interactive analytics is not the query the system cannot write but the wrong
+answer it presents as right, and that failure can be measured and, as this study
+shows, substantially reduced.
 
 ## References
 
@@ -430,7 +430,7 @@ text-to-SQL with self-correction," in *Proc. NeurIPS*, 2023.
 "CHESS: Contextual harnessing for efficient SQL synthesis,"
 arXiv:2405.16755, 2024.
 
-[8] B. Wang, C. Ren, J. Yang, X. Liang, J. Bai, L.-W. Chai, Z. Yan, Q.-W.
+[8] B. Wang, C. Ren, J. Yang, X. Liang, J. Bai, L. Chai, Z. Yan, Q.-W.
 Zhang, D. Yin, X. Sun, and Z. Li, "MAC-SQL: A multi-agent collaborative
 framework for text-to-SQL," in *Proc. COLING*, 2025, pp. 540–557.
 

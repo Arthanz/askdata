@@ -11,3 +11,4 @@ data/olist/
 .ipynb_checkpoints/
 data/*.duckdb.tmp/
 eval/reports/.checkpoints/
+graphify-out/
